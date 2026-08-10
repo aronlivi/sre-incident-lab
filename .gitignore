@@ -35,3 +35,5 @@ Thumbs.db
 logs/
 tmp/
 coverage/
+# Windows download metadata
+*:Zone.Identifier
