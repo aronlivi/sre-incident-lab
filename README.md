@@ -83,7 +83,12 @@ Terraform
    +--> Datadog resources
 ```
 
-Um diagrama visual detalhado da arquitetura será adicionado posteriormente em `docs/architecture.md`.
+### Diagrama da arquitetura
+
+![SRE Incident Lab - Local Architecture](docs/images/sre-incident-lab-architecture.png)
+
+Mais detalhes sobre as decisões de arquitetura estão disponíveis em
+[docs/architecture.md](docs/architecture.md).
 
 ## Roadmap
 
