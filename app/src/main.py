@@ -1,6 +1,11 @@
+import os
 import time
 
 from fastapi import FastAPI, HTTPException
+
+APP_ENVIRONMENT = os.getenv("APP_ENVIRONMENT", "local")
+APP_MESSAGE = os.getenv("APP_MESSAGE", "SRE Incident Lab")
+LAB_SECRET = os.getenv("LAB_SECRET", "")
 
 app = FastAPI(
     title="SRE Incident Lab API",
@@ -13,6 +18,9 @@ def root():
     return {
         "service": "sre-incident-lab",
         "status": "running",
+	"environment": APP_ENVIRONMENT,
+        "message": APP_MESSAGE,
+        "secret_configured": bool(LAB_SECRET),
     }
 
 

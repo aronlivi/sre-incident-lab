@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: incident-api
     app.kubernetes.io/part-of: sre-incident-lab
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
 spec:
   replicas: 1
   selector:
@@ -17,11 +17,16 @@ spec:
       labels:
         app.kubernetes.io/name: incident-api
         app.kubernetes.io/part-of: sre-incident-lab
-        app.kubernetes.io/version: "0.1.0"
+        app.kubernetes.io/version: "0.2.0"
     spec:
       containers:
         - name: incident-api
-          image: incident-api:0.1.0
+          image: incident-api:0.2.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: incident-api-config
+            - secretRef:
+                name: incident-api-secret

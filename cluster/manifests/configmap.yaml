@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: incident-api-config
+  namespace: sre-lab
+  labels:
+    app.kubernetes.io/name: incident-api
+    app.kubernetes.io/part-of: sre-incident-lab
+data:
+  APP_ENVIRONMENT: "lab"
+  APP_MESSAGE: "Running inside Kubernetes"
