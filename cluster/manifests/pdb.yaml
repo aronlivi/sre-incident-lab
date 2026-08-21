@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: incident-api
+  namespace: sre-lab
+  labels:
+    app.kubernetes.io/name: incident-api
+    app.kubernetes.io/part-of: sre-incident-lab
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: incident-api
