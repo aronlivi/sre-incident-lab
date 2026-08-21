@@ -30,11 +30,24 @@ spec:
                 name: incident-api-config
             - secretRef:
                 name: incident-api-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "96Mi"
+            limits:
+              cpu: "250m"
+              memory: "192Mi"
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 15
           readinessProbe:
             httpGet:
               path: /health/ready
               port: 8000
-            initialDelaySeconds: 3
             periodSeconds: 3
             timeoutSeconds: 2
             failureThreshold: 1
@@ -42,7 +55,6 @@ spec:
             httpGet:
               path: /health/live
               port: 8000
-            initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 3
