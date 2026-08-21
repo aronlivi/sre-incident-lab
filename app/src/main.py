@@ -7,9 +7,14 @@ APP_ENVIRONMENT = os.getenv("APP_ENVIRONMENT", "local")
 APP_MESSAGE = os.getenv("APP_MESSAGE", "SRE Incident Lab")
 LAB_SECRET = os.getenv("LAB_SECRET", "")
 
+health_state = {
+    "live": True,
+    "ready": True,
+}
+
 app = FastAPI(
     title="SRE Incident Lab API",
-    version="0.1.0",
+    version="0.3.0",
 )
 
 
@@ -18,7 +23,7 @@ def root():
     return {
         "service": "sre-incident-lab",
         "status": "running",
-	"environment": APP_ENVIRONMENT,
+        "environment": APP_ENVIRONMENT,
         "message": APP_MESSAGE,
         "secret_configured": bool(LAB_SECRET),
     }
@@ -26,6 +31,12 @@ def root():
 
 @app.get("/health/live")
 def health_live():
+    if not health_state["live"]:
+        raise HTTPException(
+            status_code=503,
+            detail="Liveness check failed",
+        )
+
     return {
         "status": "alive",
     }
@@ -33,8 +44,50 @@ def health_live():
 
 @app.get("/health/ready")
 def health_ready():
+    if not health_state["ready"]:
+        raise HTTPException(
+            status_code=503,
+            detail="Readiness check failed",
+        )
+
     return {
         "status": "ready",
+    }
+
+
+@app.post("/simulate/readiness/fail")
+def readiness_fail():
+    health_state["ready"] = False
+
+    return {
+        "readiness": "failed",
+    }
+
+
+@app.post("/simulate/readiness/recover")
+def readiness_recover():
+    health_state["ready"] = True
+
+    return {
+        "readiness": "recovered",
+    }
+
+
+@app.post("/simulate/liveness/fail")
+def liveness_fail():
+    health_state["live"] = False
+
+    return {
+        "liveness": "failed",
+    }
+
+
+@app.post("/simulate/liveness/recover")
+def liveness_recover():
+    health_state["live"] = True
+
+    return {
+        "liveness": "recovered",
     }
 
 

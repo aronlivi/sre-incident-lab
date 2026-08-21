@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: incident-api
     app.kubernetes.io/part-of: sre-incident-lab
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
 spec:
   replicas: 1
   selector:
@@ -17,11 +17,11 @@ spec:
       labels:
         app.kubernetes.io/name: incident-api
         app.kubernetes.io/part-of: sre-incident-lab
-        app.kubernetes.io/version: "0.2.0"
+        app.kubernetes.io/version: "0.3.0"
     spec:
       containers:
         - name: incident-api
-          image: incident-api:0.2.0
+          image: incident-api:0.3.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
@@ -30,3 +30,19 @@ spec:
                 name: incident-api-config
             - secretRef:
                 name: incident-api-secret
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
