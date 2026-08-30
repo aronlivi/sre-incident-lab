@@ -1,0 +1,23 @@
+replicaCount: 1
+
+image:
+  tag: "0.3.0"
+
+config:
+  environment: local
+  message: "SRE Incident Lab - Local Profile"
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+
+pdb:
+  enabled: true
+  minAvailable: 1
