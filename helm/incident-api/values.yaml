@@ -1,0 +1,62 @@
+replicaCount: 1
+
+image:
+  repository: incident-api
+  tag: "0.3.0"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+
+config:
+  environment: lab
+  message: "Running inside Kubernetes"
+
+secret:
+  create: false
+  name: incident-api-secret
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 96Mi
+  limits:
+    cpu: 250m
+    memory: 192Mi
+
+probes:
+  startup:
+    enabled: true
+    path: /health/live
+    periodSeconds: 2
+    timeoutSeconds: 2
+    failureThreshold: 15
+
+  readiness:
+    enabled: true
+    path: /health/ready
+    periodSeconds: 3
+    timeoutSeconds: 2
+    failureThreshold: 1
+
+  liveness:
+    enabled: true
+    path: /health/live
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 50
+
+pdb:
+  enabled: true
+  minAvailable: 1
