@@ -100,14 +100,14 @@ Kubernetes Cluster
    |
    +--> Helm Releases
    |
-   +--> Datadog Agent
+   +--> Datadog Agent (planejado para a Semana 5)
 
 Terraform
    |
    +--> Kubernetes Resources
    +--> Helm Releases
    +--> Platform Components
-   +--> Datadog Resources
+   +--> Datadog Resources (planejado para a Semana 5)
 ```
 
 ### Diagrama da arquitetura
@@ -520,6 +520,8 @@ kubectl top nodes
 kubectl top pods -n sre-lab
 ```
 
+A instalação foi validada inicialmente nesta etapa. Na Semana 4, o componente passou a ser gerenciado de forma reproduzível pelo Terraform através do Helm provider.
+
 #### Horizontal Pod Autoscaler
 
 O HPA foi configurado com:
@@ -859,32 +861,507 @@ O estado da release, o estado do rollout e a disponibilidade real dos Pods preci
 
 ---
 
-### Semana 4 — 31/08 a 06/09 — Planejada
+### Semana 4 — 31/08 a 06/09 — Concluída
 
 #### Terraform e Infrastructure as Code
 
-**Objetivo:** tornar a preparação da plataforma reproduzível utilizando Terraform.
+**Objetivo:** tornar a preparação da plataforma reproduzível utilizando Terraform, com providers versionados, recursos declarativos, validação de segurança e ciclo completo de criação e destruição.
 
-Principais entregas previstas:
+Nesta etapa, o Terraform passou a gerenciar componentes da plataforma Kubernetes sem assumir o gerenciamento da aplicação `incident-api`, que continua sob responsabilidade da release Helm criada na Semana 3.
 
-- configurar providers Kubernetes e Helm;
-- definir versões dos providers;
-- versionar o lock file;
-- provisionar namespace e ResourceQuota;
-- instalar Metrics Server utilizando o Helm provider;
-- criar variables e outputs;
-- criar `terraform.tfvars.example`;
-- revisar proteção de state e credenciais;
-- executar `terraform fmt`;
-- executar `terraform validate`;
-- executar `terraform plan`;
-- executar `terraform apply`;
-- executar `terraform destroy`;
-- reconstruir o ambiente seguindo somente a documentação.
+Foram implementados:
+
+- provider Kubernetes `3.2.1`;
+- provider Helm `3.3.0`;
+- versões fixadas e `.terraform.lock.hcl` versionado;
+- namespace `sre-lab-tf`;
+- ResourceQuota `sre-lab-quota`;
+- Metrics Server instalado pelo Helm provider;
+- chart `metrics-server` `3.14.0`;
+- aplicação do chart `0.9.0`;
+- variáveis documentadas;
+- outputs;
+- `terraform.tfvars.example`;
+- proteção de state, `.tfvars`, `.env`, chaves e certificados;
+- validações com `fmt`, `validate`, `plan`, `apply` e `destroy`;
+- reconstrução da plataforma seguindo a documentação.
+
+#### Estrutura Terraform
+
+```text
+terraform/
+├── datadog/
+│   └── .gitkeep
+└── platform/
+    ├── .terraform.lock.hcl
+    ├── main.tf
+    ├── metrics-server.tf
+    ├── outputs.tf
+    ├── providers.tf
+    ├── terraform.tfvars.example
+    ├── variables.tf
+    └── versions.tf
+```
+
+#### Recursos gerenciados
+
+O state da plataforma controla:
+
+```text
+helm_release.metrics_server
+kubernetes_namespace_v1.sre_lab_tf
+kubernetes_resource_quota_v1.sre_lab_tf
+```
+
+O namespace da aplicação:
+
+```text
+sre-lab
+```
+
+é separado do namespace utilizado para a validação do Terraform:
+
+```text
+sre-lab-tf
+```
+
+Essa separação permitiu destruir e reconstruir os recursos gerenciados por Terraform sem remover a aplicação principal.
+
+#### Pré-requisitos
+
+Antes de executar a camada Terraform, valide a toolchain:
+
+```bash
+docker version
+kubectl version --client
+kind version
+helm version
+terraform version
+```
+
+Confirme o contexto e o cluster:
+
+```bash
+kubectl config current-context
+kubectl get nodes
+```
+
+O contexto esperado é:
+
+```text
+kind-sre-lab
+```
+
+e o cluster utiliza um único nó:
+
+```text
+sre-lab-control-plane
+```
+
+Caso o cluster ainda não exista, valide primeiro:
+
+```bash
+kind get clusters
+```
+
+e somente então crie o cluster:
+
+```bash
+kind create cluster \
+  --name sre-lab \
+  --config cluster/kind-config.yaml
+```
+
+Para um cluster totalmente novo, a aplicação deve ser instalada conforme o fluxo Helm documentado em:
+
+[docs/helm-releases.md](docs/helm-releases.md)
+
+#### Inicialização
+
+A configuração da plataforma está em:
+
+```text
+terraform/platform/
+```
+
+Inicialize os providers:
+
+```bash
+terraform -chdir=terraform/platform init
+```
+
+Valide formatação e sintaxe:
+
+```bash
+terraform -chdir=terraform/platform fmt -check
+
+terraform -chdir=terraform/platform validate
+```
+
+Resultado esperado:
+
+```text
+Success! The configuration is valid.
+```
+
+#### Variáveis e arquivo de exemplo
+
+O repositório inclui:
+
+```text
+terraform/platform/terraform.tfvars.example
+```
+
+Esse arquivo contém somente valores seguros de exemplo e pode ser versionado.
+
+Arquivos `.tfvars` reais continuam fora do Git.
+
+Para gerar o plano:
+
+```bash
+terraform -chdir=terraform/platform plan \
+  -var-file=terraform.tfvars.example
+```
+
+Quando a plataforma já está convergida, o resultado esperado é:
+
+```text
+No changes. Your infrastructure matches the configuration.
+```
+
+Em um ambiente sem os recursos gerenciados, o plano esperado é:
+
+```text
+Plan: 3 to add, 0 to change, 0 to destroy.
+```
+
+#### Provisionamento
+
+Aplique a configuração:
+
+```bash
+terraform -chdir=terraform/platform apply \
+  -var-file=terraform.tfvars.example
+```
+
+Após a confirmação, o Terraform provisiona:
+
+```text
+Namespace:      sre-lab-tf
+ResourceQuota:  sre-lab-quota
+Helm release:   metrics-server
+```
+
+#### Outputs
+
+Os outputs definidos são:
+
+```text
+metrics_server_namespace
+metrics_server_release
+platform_namespace
+resource_quota_name
+```
+
+Consulta:
+
+```bash
+terraform -chdir=terraform/platform output
+```
+
+#### Validação do state
+
+```bash
+terraform -chdir=terraform/platform state list
+```
+
+Resultado esperado:
+
+```text
+helm_release.metrics_server
+kubernetes_namespace_v1.sre_lab_tf
+kubernetes_resource_quota_v1.sre_lab_tf
+```
+
+#### Validação Kubernetes e Helm
+
+```bash
+kubectl get namespace sre-lab-tf
+
+kubectl get resourcequota -n sre-lab-tf
+
+helm list -n kube-system
+
+kubectl get deployment metrics-server -n kube-system
+
+kubectl get apiservice v1beta1.metrics.k8s.io
+```
+
+O Deployment deve permanecer:
+
+```text
+READY   1/1
+```
+
+e a APIService:
+
+```text
+AVAILABLE   True
+```
+
+Depois que o Metrics Server estiver disponível:
+
+```bash
+kubectl top nodes
+
+kubectl top pods -n sre-lab
+```
+
+Uma nova execução do plan deve confirmar a idempotência:
+
+```bash
+terraform -chdir=terraform/platform plan \
+  -var-file=terraform.tfvars.example
+```
+
+Resultado esperado:
+
+```text
+No changes. Your infrastructure matches the configuration.
+```
+
+#### Destroy e reconstrução
+
+O ciclo destrutivo foi validado de forma controlada:
+
+```bash
+terraform -chdir=terraform/platform destroy \
+  -var-file=terraform.tfvars.example
+```
+
+Antes da confirmação, o plano esperado é:
+
+```text
+Plan: 0 to add, 0 to change, 3 to destroy.
+```
+
+Após o destroy:
+
+```bash
+terraform -chdir=terraform/platform state list
+
+helm list -n kube-system
+
+kubectl get namespace sre-lab-tf
+```
+
+O state fica sem recursos, a release `metrics-server` deixa de existir e o namespace `sre-lab-tf` retorna `NotFound`.
+
+A aplicação principal continua em execução porque não pertence a esse state:
+
+```bash
+kubectl get pods -n sre-lab
+```
+
+Durante a ausência do Metrics Server, o HPA pode apresentar temporariamente:
+
+```text
+cpu: <unknown>/50%
+```
+
+A reconstrução é feita com:
+
+```bash
+terraform -chdir=terraform/platform apply \
+  -var-file=terraform.tfvars.example
+```
+
+Resultado esperado:
+
+```text
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+```
+
+Depois:
+
+```bash
+terraform -chdir=terraform/platform state list
+
+helm list -n kube-system
+
+kubectl get deployment metrics-server -n kube-system
+
+kubectl get apiservice v1beta1.metrics.k8s.io
+
+kubectl top nodes
+
+kubectl top pods -n sre-lab
+```
+
+Finalize novamente com:
+
+```bash
+terraform -chdir=terraform/platform plan \
+  -var-file=terraform.tfvars.example
+```
+
+Resultado esperado:
+
+```text
+No changes. Your infrastructure matches the configuration.
+```
+
+#### Segurança do state e credenciais
+
+O `.gitignore` protege:
+
+```text
+.env
+.env.*
+*.key
+*.pem
+*.tfstate
+*.tfstate.*
+*.tfvars
+**/.terraform/*
+```
+
+Também foi realizada uma auditoria com `git ls-files` e com o histórico completo do Git para confirmar que state, `.tfvars`, `.env`, chaves privadas e certificados não foram versionados.
+
+Arquivos fictícios foram utilizados para validar o comportamento do `.gitignore`.
+
+#### Incidente: perda do state local
+
+Durante um teste do `.gitignore`, o arquivo de state local foi removido acidentalmente enquanto os recursos ainda existiam no Kubernetes.
+
+O efeito observado foi:
+
+```text
+Recursos reais existentes
+        ↓
+State local vazio
+        ↓
+Terraform interpreta os recursos como ausentes
+        ↓
+Plan indica nova criação
+```
+
+A recuperação foi feita com `terraform import`.
+
+Namespace:
+
+```bash
+terraform -chdir=terraform/platform import \
+  -var-file=terraform.tfvars.example \
+  kubernetes_namespace_v1.sre_lab_tf \
+  sre-lab-tf
+```
+
+ResourceQuota:
+
+```bash
+terraform -chdir=terraform/platform import \
+  -var-file=terraform.tfvars.example \
+  kubernetes_resource_quota_v1.sre_lab_tf \
+  sre-lab-tf/sre-lab-quota
+```
+
+Metrics Server:
+
+```bash
+terraform -chdir=terraform/platform import \
+  -var-file=terraform.tfvars.example \
+  helm_release.metrics_server \
+  kube-system/metrics-server
+```
+
+Depois do import, a release Helm precisou de uma reconciliação em-place para restaurar atributos definidos pela configuração.
+
+O processo terminou novamente com:
+
+```text
+No changes. Your infrastructure matches the configuration.
+```
+
+O incidente demonstrou que o state não é apenas um arquivo auxiliar: ele é parte fundamental do vínculo entre a configuração declarativa e a infraestrutura real.
+
+#### Teste de reprodutibilidade
+
+A documentação da Semana 4 foi validada executando o fluxo descrito no README:
+
+```text
+toolchain
+↓
+contexto Kubernetes
+↓
+terraform init
+↓
+fmt
+↓
+validate
+↓
+plan
+↓
+apply
+↓
+validação dos recursos
+↓
+destroy
+↓
+validação da remoção
+↓
+apply
+↓
+validação da reconstrução
+↓
+plan final
+```
+
+O ciclo concluiu com:
+
+```text
+Destroy complete! Resources: 3 destroyed.
+
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+
+No changes. Your infrastructure matches the configuration.
+```
+
+Durante todo o processo, a aplicação `incident-api` permaneceu saudável no namespace `sre-lab`.
+
+#### Aprendizado da Semana 4
+
+A principal evolução foi deixar de preparar componentes da plataforma manualmente e passar a descrevê-los de forma declarativa.
+
+O fluxo passou a ser:
+
+```text
+Código Terraform
+      ↓
+terraform plan
+      ↓
+estado desejado
+      ↓
+terraform apply
+      ↓
+Kubernetes / Helm
+      ↓
+state
+      ↓
+terraform plan
+      ↓
+convergência
+```
+
+Além da criação de recursos, a semana demonstrou na prática três propriedades importantes de Infrastructure as Code:
+
+- **reprodutibilidade** — a plataforma pôde ser destruída e reconstruída;
+- **idempotência** — o plan final não encontrou diferenças;
+- **state management** — a perda do state mostrou a importância do vínculo entre código e recursos reais.
 
 ---
 
-### Semana 5 — 07/09 a 13/09 — Planejada
+### Semana 5 — 07/09 a 13/09 — Pendente
 
 #### Datadog e observabilidade
 
@@ -1019,7 +1496,16 @@ sre-incident-lab/
 ├── scripts/
 ├── terraform/
 │   ├── platform/
+│   │   ├── .terraform.lock.hcl
+│   │   ├── main.tf
+│   │   ├── metrics-server.tf
+│   │   ├── outputs.tf
+│   │   ├── providers.tf
+│   │   ├── terraform.tfvars.example
+│   │   ├── variables.tf
+│   │   └── versions.tf
 │   └── datadog/
+│       └── .gitkeep
 │
 ├── .github/
 ├── .dockerignore
@@ -1059,7 +1545,7 @@ sre-incident-lab/
 - [x] Releases e upgrades com Helm
 - [x] Deploy defeituoso controlado
 - [x] Rollback com Helm
-- [ ] Automação com Terraform
+- [x] Automação com Terraform
 - [ ] Observabilidade com Datadog
 - [ ] Game Day
 - [ ] Post-mortem final
@@ -1098,6 +1584,7 @@ Pré-projeto   ✅
 Semana 1      ✅
 Semana 2      ✅
 Semana 3      ✅
+Semana 4      ✅
 ```
 
-**Próxima etapa:** Terraform e Infrastructure as Code.
+**Próxima etapa:** Datadog e observabilidade.
