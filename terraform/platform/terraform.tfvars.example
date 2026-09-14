@@ -1,0 +1,17 @@
+# Example values for the local SRE Incident Lab.
+# This file contains no credentials or sensitive information.
+
+kubeconfig_path = "~/.kube/config"
+kube_context    = "kind-sre-lab"
+
+platform_namespace = "sre-lab-tf"
+resource_quota_name = "sre-lab-quota"
+
+quota_requests_cpu    = "500m"
+quota_requests_memory = "512Mi"
+quota_limits_cpu      = "1"
+quota_limits_memory   = "1Gi"
+quota_pods            = 5
+
+metrics_server_chart_version = "3.14.0"
+metrics_server_namespace     = "kube-system"

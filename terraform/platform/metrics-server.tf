@@ -2,8 +2,8 @@ resource "helm_release" "metrics_server" {
   name       = "metrics-server"
   repository = "https://kubernetes-sigs.github.io/metrics-server/"
   chart      = "metrics-server"
-  version    = "3.14.0"
-  namespace  = "kube-system"
+  version    = var.metrics_server_chart_version
+  namespace  = var.metrics_server_namespace
 
   wait    = true
   timeout = 180
